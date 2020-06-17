@@ -11,7 +11,6 @@ const Peer = window.Peer;
 
     const localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        video: { facingMode: 'user' }, // ‰t»‘¤‚ÌƒJƒƒ‰
         audio: true,
     });
 
