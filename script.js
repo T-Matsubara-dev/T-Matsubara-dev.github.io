@@ -1,83 +1,161 @@
 const Peer = window.Peer;
 
 (async function main() {
-    const localVideo = document.getElementById('js-local-stream');
+    const localVideo = document.getElementById('js-local-video');
     const localId = document.getElementById('js-local-id');
+    const remoteVideo = document.getElementById('js-remote-video');
+    const remoteId = document.getElementById('js-remote-id');
+    const connectedId = document.getElementById('js-connected-id');
     const callTrigger = document.getElementById('js-call-trigger');
     const closeTrigger = document.getElementById('js-close-trigger');
-    const remoteVideo = document.getElementById('js-remote-stream');
-    const remoteId = document.getElementById('js-remote-id');
-    const meta = document.getElementById('js-meta');
-    const sdkSrc = document.querySelector('script[src*=skyway]');
 
-    meta.innerText = `
-    UA: ${navigator.userAgent}
-    SDK: ${sdkSrc ? sdkSrc.src : 'unknown'}
-  `.trim();
-
-    const localStream = await navigator.mediaDevices
-        .getUserMedia({
-            audio: true,
-            video: true,
-        })
-        .catch(console.error);
-
-    // Render local stream
-    localVideo.muted = true;
-    localVideo.srcObject = localStream;
-    localVideo.playsInline = true;
-    await localVideo.play().catch(console.error);
-
-    const peer = (window.peer = new Peer({
-        key: window.__SKYWAY_KEY__,
-        debug: 3,
-    }));
-
-    // Register caller handler
-    callTrigger.addEventListener('click', () => {
-        // Note that you need to ensure the peer has connected to signaling server
-        // before using methods of peer instance.
-        if (!peer.open) {
-            return;
-        }
-
-        const mediaConnection = peer.call(remoteId.value, localStream);
-
-        mediaConnection.on('stream', async stream => {
-            // Render remote stream for caller
-            remoteVideo.srcObject = stream;
-            remoteVideo.playsInline = true;
-            await remoteVideo.play().catch(console.error);
-        });
-
-        mediaConnection.once('close', () => {
-            remoteVideo.srcObject.getTracks().forEach(track => track.stop());
-            remoteVideo.srcObject = null;
-        });
-
-        closeTrigger.addEventListener('click', () => mediaConnection.close(true));
+    const localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
     });
 
-    peer.once('open', id => (localId.textContent = id));
+  
+    localVideo.srcObject = localStream;
+    localVideo.muted = true; // 自分の音声を自分のスピーカーから聞こえなくする。相手には届く。
+    localVideo.playsInline = true;
+    localVideo.autoplay = true;
+    
 
-    // Register callee handler
+    localVideo.play();
+    
+    
+    const peer = new Peer({
+        key: 'ae5dd772-2e2c-40a3-867d-2721990285b8',
+        debug: 3,
+    });
+
+    peer.on('open', (id) => {
+        localId.textContent = id;
+    });
+
     peer.on('call', mediaConnection => {
         mediaConnection.answer(localStream);
+        connectedId.textContent = mediaConnection.remoteId;
 
-        mediaConnection.on('stream', async stream => {
-            // Render remote stream for callee
+        mediaConnection.on('stream', stream => {
             remoteVideo.srcObject = stream;
-            remoteVideo.playsInline = true;
-            await remoteVideo.play().catch(console.error);
         });
 
         mediaConnection.once('close', () => {
-            remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+            remoteVideo.srcObject.getTracks().forEach(track => {
+                track.stop();
+            });
             remoteVideo.srcObject = null;
+            connectedId.textContent = '...';
         });
 
-        closeTrigger.addEventListener('click', () => mediaConnection.close(true));
+        closeTrigger.addEventListener('click', () => {
+            mediaConnection.close(true);
+        });
+    });
+
+    callTrigger.addEventListener('click', () => {
+        const mediaConnection = peer.call(remoteId.value, localStream);
+        connectedId.textContent = mediaConnection.remoteId;
+
+        mediaConnection.on('stream', stream => {
+            remoteVideo.srcObject = stream;
+        });
+
+        mediaConnection.once('close', () => {
+            remoteVideo.srcObject.getTracks().forEach(track => {
+                track.stop();
+            });
+            remoteVideo.srcObject = null;
+            connectedId.textContent = '...';
+        });
+
+        closeTrigger.addEventListener('click', () => {
+            mediaConnection.close(true);
+        });
     });
 
     peer.on('error', console.error);
 })();
+
+let localStream = null;
+let peer = null;
+let existingCall = null;
+
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(function (stream) {
+        $('#myStream').get(0).srcObject = stream;
+        localStream = stream;
+    }).catch(function (error) {
+        console.error('mediaDevice.getUserMedia() error:', error);
+        return;
+    });
+
+peer = new Peer({
+    key: 'ae5dd772-2e2c-40a3-867d-2721990285b8',
+    debug: 3
+});
+
+peer.on('open', function () {
+    $('#my-id').text(peer.id);
+});
+
+peer.on('call', function (call) {
+    call.answer(localStream);
+    setupCallEventHandlers(call);
+});
+
+peer.on('error', function (err) {
+    alert(err.message);
+});
+
+$('#make-call').submit(function (e) {
+    e.preventDefault();
+    const call = peer.call($('#peer-id').val(), localStream);
+    setupCallEventHandlers(call);
+});
+
+$('#end-call').click(function () {
+    existingCall.close();
+});
+
+function setupCallEventHandlers(call) {
+    if (existingCall) {
+        existingCall.close();
+    };
+
+    existingCall = call;
+
+    call.on('stream', function (stream) {
+        addVideo(call, stream);
+        setupEndCallUI();
+        $('#connected-peer-id').text(call.remoteId);
+    });
+
+    call.on('close', function () {
+        removeVideo(call.remoteId);
+        setupMakeCallUI();
+    });
+}
+
+
+function addVideo(call, stream) {
+    const videoDom = $('<video autoplay>');
+    videoDom.attr('id', call.remoteId);
+    videoDom.get(0).srcObject = stream;
+    $('.videosContainer').append(videoDom);
+}
+
+function removeVideo(peerId) {
+    $('#' + peerId).remove();
+}
+
+function setupMakeCallUI() {
+    $('#make-call').show();
+    $('#end-call').hide();
+}
+
+function setupEndCallUI() {
+    $('#make-call').hide();
+    $('#end-call').show();
+}
