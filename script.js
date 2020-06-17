@@ -39,6 +39,8 @@ const Peer = window.Peer;
 
         mediaConnection.on('stream', stream => {
             remoteVideo.srcObject = stream;
+            remoteVideo.playsInline = true;
+            remoteVideo.play();
         });
 
         mediaConnection.once('close', () => {
@@ -60,6 +62,8 @@ const Peer = window.Peer;
 
         mediaConnection.on('stream', stream => {
             remoteVideo.srcObject = stream;
+            remoteVideo.playsInline = true;
+            remoteVideo.play();
         });
 
         mediaConnection.once('close', () => {
