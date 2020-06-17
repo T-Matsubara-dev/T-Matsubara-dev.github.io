@@ -19,6 +19,9 @@ const Peer = window.Peer;
     localVideo.muted = true; // 自分の音声を自分のスピーカーから聞こえなくする。相手には届く。
     localVideo.playsInline = true;
     localVideo.autoplay = true;
+    video.setAttribute("playsinline", true);
+    video.setAttribute("muted", true);
+    video.setAttribute("autoplay", true);
 
     localVideo.play();
     
@@ -81,7 +84,7 @@ let localStream = null;
 let peer = null;
 let existingCall = null;
 
-navigator.mediaDevices.getUserMedia({ video: true, video: { facingMode: 'user' }, audio: true })
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .then(function (stream) {
         $('#myStream').get(0).srcObject = stream;
         localStream = stream;
