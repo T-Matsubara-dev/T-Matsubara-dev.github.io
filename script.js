@@ -10,11 +10,17 @@ const Peer = window.Peer;
     const closeTrigger = document.getElementById('js-close-trigger');
 
     const localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { facingMode: 'user' }, // 液晶側のカメラ
         audio: true,
     });
-    
+
+
+
     localVideo.srcObject = localStream;
+    localVideo.muted = true; // 自分の音声を自分のスピーカーから聞こえなくする。相手には届く。
+    localVideo.playsInline = true;
+    localVideo.autoplay = true;
+
     localVideo.play();
     
     
